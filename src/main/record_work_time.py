@@ -11,18 +11,6 @@ import sys
 
 import work_recorder
 
-class InvalidArgumentFormatException(Exception):
-    u"""
-    Exception that represents inputed command line arguments is invalid.
-    """
-    pass
-
-# Pattern of a day.
-# Year must be 2xxx.
-PATTERN_DAY = re.compile(ur'^(?P<year>2\d{3})?(?P<month>\d?\d)(?P<day>\d{2})$')
-# Pattern of a time.
-PATTERN_TIME = re.compile(ur'^(?P<hour>\d?\d)(?P<minute>\d{2})$')
-
 # Key of project in a work time.
 # Value is a string.
 WORK_TIME_KEY_PROJECT = u'project'
@@ -38,56 +26,6 @@ WORK_TIME_KEY_START = u'start'
 # Key of end time in a work time.
 # Value is a string. Format is HH:MM:SS.
 WORK_TIME_KEY_END = u'end'
-
-def convert_day(day_string):
-    u"""
-    Convert a string to day (YYYY-MM-DD).
-
-    If this method could not convert, raise InvalidArgumentFormatException.
-    """
-    match = PATTERN_DAY.match(day_string)
-    if not match:
-        raise InvalidArgumentFormatException()
-
-    year = match.group(u'year')
-    if not year:
-        today = date.today()
-        year = today.year
-    month = match.group(u'month')
-    day = match.group(u'day')
-
-    try:
-        converted_datetime = datetime.strptime(
-                u'{year} {month} {day}'.format(
-                    year = year, month = month, day = day),
-                u'%Y %m %d')
-    except ValueError, e:
-        raise InvalidArgumentFormatException()
-
-    return converted_datetime.date().isoformat()
-
-def convert_time(time_string):
-    u"""
-    Convert a string to time (HH:MM).
-
-    If this method could not convert, raise InvalidArgumentFormatException.
-    """
-    match = PATTERN_TIME.match(time_string)
-    if not match:
-        raise InvalidArgumentFormatException()
-
-    hour = match.group(u'hour')
-    minute = match.group(u'minute')
-
-    try:
-        time = datetime.strptime(
-                u'{hour} {minute}'.format(hour = hour, minute = minute),
-                u'%H %M').time()
-    except ValueError:
-        raise InvalidArgumentFormatException()
-
-    time.replace(microsecond = 0)
-    return time.isoformat()
 
 def convert_work_times(project, day_string, time_strings):
     u"""
@@ -105,15 +43,16 @@ def convert_work_times(project, day_string, time_strings):
     # Time are pairs of start and end.
     # Therefore, the number of times should be an even number.
     if len(time_strings) % 2:
-        raise InvalidArgumentFormatException()
+        raise work_recorder.InvalidArgumentFormatException()
 
-    day = convert_day(day_string)
+    day = work_recorder.convert_day(day_string)
 
-    times = [convert_time(a_time_string) for a_time_string in time_strings]
+    times = [work_recorder.convert_time(a_time_string)
+            for a_time_string in time_strings]
 
     # Input times should be sorted.
     if times != sorted(times):
-        raise InvalidArgumentFormatException()
+        raise work_recorder.InvalidArgumentFormatException()
 
     start_times = []
     end_times = []
@@ -180,7 +119,7 @@ def main():
 
     try:
         work_times = convert_work_times(args.project, args.day, args.times)
-    except InvalidArgumentFormatException:
+    except work_recorder.InvalidArgumentFormatException:
         print u'Your arguments discords with formats.'
         parser.print_help()
         sys.exit(1)

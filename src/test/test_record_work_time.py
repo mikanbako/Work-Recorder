@@ -6,68 +6,9 @@ import create_work_record
 import work_recorder
 import record_work_time
 
-from datetime import date
 import os.path
 import sqlite3
-import tempfile
 import unittest
-
-class TestDayConverting(unittest.TestCase):
-    def test_format_yyyymmdd(self):
-        self.assertEquals(u'2010-11-28',
-                record_work_time.convert_day(u'20101128'))
-
-    def test_format_mmdd(self):
-        today = date.today()
-        self.assertEquals(u'%s-11-28' % today.year,
-                record_work_time.convert_day(u'1128'))
-
-    def test_format_mdd(self):
-        today = date.today()
-        self.assertEquals(u'%s-01-28' % today.year,
-                record_work_time.convert_day(u'128'))
-
-    def check_invalid(self, date_string):
-        try:
-            date = record_work_time.convert_day(date_string)
-            self.fail(date)
-        except record_work_time.InvalidArgumentFormatException:
-            pass
-
-    def test_invalid_format_yyymmdd(self):
-        self.check_invalid(u'0101128')
-
-    def test_invalid_format_yyyyymmdd(self):
-        self.check_invalid(u'200101128')
-
-    def test_invalid_format_dd(self):
-        self.check_invalid(u'28')
-
-    def test_invalid_day(self):
-        self.check_invalid(u'20100232')
-
-class TestTimeConverting(unittest.TestCase):
-    def test_format_hhmm(self):
-        self.assertEquals(u'17:35:00', record_work_time.convert_time(u'1735'))
-
-    def test_format_hmm(self):
-        self.assertEquals(u'05:35:00', record_work_time.convert_time(u'535'))
-
-    def check_invalid(self, time_string):
-        try:
-            time = record_work_time.convert_time(time_string)
-            self.fail(time)
-        except record_work_time.InvalidArgumentFormatException:
-            pass
-
-    def test_invalid_format_mm(self):
-        self.check_invalid(u'35')
-
-    def test_invalid_format_hhhmm(self):
-        self.check_invalid(u'11755')
-
-    def test_invalid_time(self):
-        self.check_invalid(u'2501')
 
 class TestConvertingWorkTimes(unittest.TestCase):
     def test_one(self):
@@ -117,7 +58,7 @@ class TestConvertingWorkTimes(unittest.TestCase):
             record_work_time.convert_work_times(
                 u'project', u'20103028', [u'900', u'1200', u'1310', u'2059'])
             self.fail()
-        except record_work_time.InvalidArgumentFormatException:
+        except work_recorder.InvalidArgumentFormatException:
             pass
 
     def test_invalid_day_count(self):
@@ -125,7 +66,7 @@ class TestConvertingWorkTimes(unittest.TestCase):
             record_work_time.convert_work_times(
                 u'project', u'20101128', [u'900', u'1200', u'1310'])
             self.fail()
-        except record_work_time.InvalidArgumentFormatException:
+        except work_recorder.InvalidArgumentFormatException:
             pass
 
     def test_invalid_time(self):
@@ -133,7 +74,7 @@ class TestConvertingWorkTimes(unittest.TestCase):
             record_work_time.convert_work_times(
                 u'project', u'20101128', [u'7000', u'1200'])
             self.fail()
-        except record_work_time.InvalidArgumentFormatException:
+        except work_recorder.InvalidArgumentFormatException:
             pass
 
     def test_invalid_time_order_when_one(self):
@@ -141,7 +82,7 @@ class TestConvertingWorkTimes(unittest.TestCase):
             record_work_time.convert_work_times(
                 u'project', u'20101128', [u'1200', u'1159'])
             self.fail()
-        except record_work_time.InvalidArgumentFormatException:
+        except work_recorder.InvalidArgumentFormatException:
             pass
 
     def test_invalid_time_order_when_two(self):
@@ -149,7 +90,7 @@ class TestConvertingWorkTimes(unittest.TestCase):
             record_work_time.convert_work_times(
                 u'project', u'20101128', [u'1100', u'1159', u'110', u'1200'])
             self.fail()
-        except record_work_time.InvalidArgumentFormatException:
+        except work_recorder.InvalidArgumentFormatException:
             pass
 
 class TestRecordingWorkTimes(unittest.TestCase):
