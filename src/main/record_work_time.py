@@ -1,0 +1,194 @@
+#!/usr/bin/env python
+# coding: UTF-8
+
+from datetime import date, datetime
+import argparse
+import os
+import os.path
+import re
+import sqlite3
+import sys
+
+import work_recorder
+
+class InvalidArgumentFormatException(Exception):
+    u"""
+    Exception that represents inputed command line arguments is invalid.
+    """
+    pass
+
+# Pattern of a day.
+# Year must be 2xxx.
+PATTERN_DAY = re.compile(ur'^(?P<year>2\d{3})?(?P<month>\d?\d)(?P<day>\d{2})$')
+# Pattern of a time.
+PATTERN_TIME = re.compile(ur'^(?P<hour>\d?\d)(?P<minute>\d{2})$')
+
+# Key of project in a work time.
+# Value is a string.
+WORK_TIME_KEY_PROJECT = u'project'
+
+# Key of day in a work time.
+# Value is a string. Format is YYYY-MM-DD.
+WORK_TIME_KEY_DAY = u'day'
+
+# Key of start time in a work time.
+# Value is a string. Format is HH:MM:SS.
+WORK_TIME_KEY_START = u'start'
+
+# Key of end time in a work time.
+# Value is a string. Format is HH:MM:SS.
+WORK_TIME_KEY_END = u'end'
+
+def convert_day(day_string):
+    u"""
+    Convert a string to day (YYYY-MM-DD).
+
+    If this method could not convert, raise InvalidArgumentFormatException.
+    """
+    match = PATTERN_DAY.match(day_string)
+    if not match:
+        raise InvalidArgumentFormatException()
+
+    year = match.group(u'year')
+    if not year:
+        today = date.today()
+        year = today.year
+    month = match.group(u'month')
+    day = match.group(u'day')
+
+    try:
+        converted_datetime = datetime.strptime(
+                u'{year} {month} {day}'.format(
+                    year = year, month = month, day = day),
+                u'%Y %m %d')
+    except ValueError, e:
+        raise InvalidArgumentFormatException()
+
+    return converted_datetime.date().isoformat()
+
+def convert_time(time_string):
+    u"""
+    Convert a string to time (HH:MM).
+
+    If this method could not convert, raise InvalidArgumentFormatException.
+    """
+    match = PATTERN_TIME.match(time_string)
+    if not match:
+        raise InvalidArgumentFormatException()
+
+    hour = match.group(u'hour')
+    minute = match.group(u'minute')
+
+    try:
+        time = datetime.strptime(
+                u'{hour} {minute}'.format(hour = hour, minute = minute),
+                u'%H %M').time()
+    except ValueError:
+        raise InvalidArgumentFormatException()
+
+    time.replace(microsecond = 0)
+    return time.isoformat()
+
+def convert_work_times(project, day_string, time_strings):
+    u"""
+    Convert the arguments to work times.
+
+    If this method could not convert, raise InvalidArgumentFormatException.
+
+    Parameters:
+        project : Name of the project.
+        day_string : String of the day.
+        time_strings : List of string of the times.
+    Return:
+        A list of work time dictionary.
+    """
+    # Time are pairs of start and end.
+    # Therefore, the number of times should be an even number.
+    if len(time_strings) % 2:
+        raise InvalidArgumentFormatException()
+
+    day = convert_day(day_string)
+
+    times = [convert_time(a_time_string) for a_time_string in time_strings]
+
+    # Input times should be sorted.
+    if times != sorted(times):
+        raise InvalidArgumentFormatException()
+
+    start_times = []
+    end_times = []
+    time_count = 0
+    for a_time in times:
+        if time_count % 2:
+            end_times.append(a_time)
+        else:
+            start_times.append(a_time)
+        time_count += 1
+
+    work_times = []
+    for index in range(len(start_times)):
+        a_work_time = {}
+        a_work_time[WORK_TIME_KEY_PROJECT] = project
+        a_work_time[WORK_TIME_KEY_DAY] = day
+        a_work_time[WORK_TIME_KEY_START] = start_times[index]
+        a_work_time[WORK_TIME_KEY_END] = end_times[index]
+        work_times.append(a_work_time)
+
+    return work_times
+
+def record_work_times(work_times, conn):
+    u"""
+    Record work times to database.
+
+    Parameters:
+        work_times : A list of work times.
+        conn : Connection of database.
+    """
+    for a_work_time in work_times:
+        conn.execute(
+            u'insert into {table} ({day}, {start}, {end}, {project}) '.format(
+                    table = work_recorder.TABLE_WORK_TIME,
+                    day = work_recorder.COLUMN_DAY,
+                    start = work_recorder.COLUMN_START,
+                    end = work_recorder.COLUMN_END,
+                    project = work_recorder.COLUMN_PROJECT) +
+                u'values (:day, :start, :end, :project)',
+            {u'day' : a_work_time[WORK_TIME_KEY_DAY],
+                u'start' : a_work_time[WORK_TIME_KEY_START],
+                u'end' : a_work_time[WORK_TIME_KEY_END],
+                u'project' : a_work_time[WORK_TIME_KEY_PROJECT]})
+
+def main():
+    u"""
+    Record a work time in a day.
+
+    Command line arguments:
+        <project name> : project name (required)
+        <day> : day, format : YYYYMMDD or MMDD, MDD. (required)
+        <time> : <start time> <end time> (required, can repetition)
+            <start time>, <end time> : time, format : HHMM or HMM.
+    """
+    parser = argparse.ArgumentParser(description = u'Redord a work time in a day.')
+    parser.add_argument(u'project',
+            help = u'Name of the project.')
+    parser.add_argument(u'day',
+            help = u'Day of the work. Format is YYYYMMDD or MMDD, MDD')
+    parser.add_argument(u'times', nargs = '+',
+            help = u'Work time of the work in the day. Format is <time> <time>.' +
+                    'Format of <time> is HHMM or HMM.')
+    args = parser.parse_args()
+
+    try:
+        work_times = convert_work_times(args.project, args.day, args.times)
+    except InvalidArgumentFormatException:
+        print u'Your arguments discords with formats.'
+        parser.print_help()
+        sys.exit(1)
+
+    database = os.path.join(os.getcwdu(), work_recorder.DATABASE_FILE_NAME)
+    with sqlite3.connect(database) as conn:
+        record_work_times(work_times, conn)
+
+if __name__ == '__main__':
+    main()
+
