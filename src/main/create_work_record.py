@@ -24,11 +24,12 @@ def create_database(conn):
     conn.execute(
             u"""
             create table {table_name} (
-                {day} text primary key,
+                {day} text,
                 {start} text,
-                {end} text,
-                {project} text,
-                {comment} text
+                {end} text not null,
+                {project} textn not null,
+                {comment} text default '' not null,
+                primary key (day, start)
             )
             """.format(table_name = work_recorder.TABLE_WORK_TIME,
                     day = work_recorder.COLUMN_DAY,
