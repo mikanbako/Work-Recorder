@@ -21,7 +21,7 @@ PATH_LIB_TEST = os.path.join(PATH_LIB, 'test')
 ###
 # 環境変数の設定
 ###
-os.environ['PYTHONPATH'] = ';'.join([PATH_SRC_MAIN, PATH_SRC_TEST, PATH_LIB_TEST])
+os.environ['PYTHONPATH'] = os.pathsep.join([PATH_SRC_MAIN, PATH_SRC_TEST, PATH_LIB_TEST])
 
 ###
 # ビルド用コマンド
