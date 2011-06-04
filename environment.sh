@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# coding: UTF-8
+#!/bin/bash
 
 # The MIT License
 # 
@@ -24,14 +23,11 @@
 # 
 # THE SOFTWARE.
 
-# Execute unit test on Hudson.
+# Set environment for developing.
+#
+# Execute source command with this script at its same directory.
 
-import sys
-import xmlrunner
+TOP_DIRECTORY=`pwd`
 
-import unittest_suite
-
-if __name__ == '__main__':
-    runner = xmlrunner.XMLTestRunner(sys.stdout)
-    runner.run(unittest_suite.suite())
+export PYTHONPATH="$TOP_DIRECTORY/src/main":"$TOP_DIRECTORY/src/test":"$TOP_DIRECTORY/externals/test"
 

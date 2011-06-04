@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # coding: UTF-8
 
 # Unit test for record_work_time.py.
